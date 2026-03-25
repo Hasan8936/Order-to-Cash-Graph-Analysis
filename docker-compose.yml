@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_PATH=backend/o2c.db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+    volumes:
+      - ./backend:/app/backend
+      - ./data:/app/data
+    command: "uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - REACT_APP_API_BASE=http://backend:8000
+    volumes:
+      - ./frontend/src:/app/src
+    command: "npm run dev -- --host"
+
+volumes:
+  data:
