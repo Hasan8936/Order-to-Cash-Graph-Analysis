@@ -99,9 +99,9 @@ def graph_to_json(G: nx.DiGraph) -> Dict[str, Any]:
     
     # Convert nodes
     for idx, (node_id, attrs) in enumerate(G.nodes(data=True)):
-        node_id_map[node_id] = idx
+        node_id_map[node_id] = str(idx)
         nodes.append({
-            "id": idx,
+            "id": str(idx),
             "label": attrs.get("label", node_id),
             "type": attrs.get("type", "Unknown"),
             "color": attrs.get("color", "#999"),

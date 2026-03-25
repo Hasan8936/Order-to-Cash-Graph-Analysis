@@ -19,7 +19,7 @@ export const useGraphStore = create<Store>((set) => ({
   nodes: [],
   links: [],
   selectedNodeId: null,
-  highlightedNodes: new Set(),
+  highlightedNodes: new Set<string>(),
   isLoading: false,
   error: null,
 
@@ -30,7 +30,7 @@ export const useGraphStore = create<Store>((set) => ({
   addHighlightedNode: (id) => set((state) => ({
     highlightedNodes: new Set([...state.highlightedNodes, id]),
   })),
-  clearHighlightedNodes: () => set({ highlightedNodes: new Set() }),
+  clearHighlightedNodes: () => set({ highlightedNodes: new Set<string>() }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
 }));

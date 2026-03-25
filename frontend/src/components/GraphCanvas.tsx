@@ -1,7 +1,7 @@
 /**
  * GraphCanvas component for visualizing the O2C graph.
  */
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ForceGraph2D } from "react-force-graph";
 import { useGraphStore } from "../store/graphStore";
 import NodePopup from "./NodePopup";
@@ -17,52 +17,55 @@ interface NodeData {
   y?: number;
 }
 
-interface LinkData {
-  source: number;
-  target: number;
-  label?: string;
-}
-
 function GraphCanvas() {
   const { nodes, links, selectedNodeId, setSelectedNodeId, highlightedNodes, error } =
     useGraphStore();
+  const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
-  // Convert node IDs to indices for force-graph
-  const nodeIndexMap = new Map(
-    nodes.map((node, idx) => [node.id, idx])
-  );
+  useEffect(() => {
+    const updateDimensions = () => {
+      const container = containerRef.current;
+      if (container) {
+        setDimensions({ width: container.clientWidth, height: container.clientHeight });
+      }
+    };
+
+    updateDimensions();
+    const resizeObserver = new ResizeObserver(() => updateDimensions());
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+
+    window.addEventListener("resize", updateDimensions);
+    return () => {
+      window.removeEventListener("resize", updateDimensions);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  console.log("GraphCanvas render", { nodes: nodes.length, links: links.length, error });
 
   const graphData = {
-    nodes: nodes.map((node, idx) => ({
-      id: idx,
-      label: node.label,
-      type: node.type,
-      color: node.color,
-      metadata: node.metadata,
-      val: 3,
+    nodes: nodes.map((node) => ({
+      ...node,
       highlighted: highlightedNodes.has(node.id),
+      val: 3,
     })),
     links: links.map((link) => ({
-      source:
-        typeof link.source === "string"
-          ? nodeIndexMap.get(link.source) ?? 0
-          : link.source,
-      target:
-        typeof link.target === "string"
-          ? nodeIndexMap.get(link.target) ?? 0
-          : link.target,
+      source: link.source,
+      target: link.target,
       label: link.label,
-    })) as LinkData[],
+    })),
   };
 
+  console.log("graphData", graphData);
+
   const handleNodeClick = (node: NodeData) => {
-    const nodeId = nodes[node.id]?.id;
-    setSelectedNodeId(nodeId || null);
+    setSelectedNodeId(node.id);
   };
 
   const handleNodeHover = (node: NodeData | null) => {
-    if (graphRef.current && node) {
+    if (graphRef.current && node && node.x != null && node.y != null) {
       graphRef.current.centerAt(node.x, node.y, 1000);
     }
   };
@@ -82,7 +85,7 @@ function GraphCanvas() {
     );
   }
   return (
-    <div className="graph-canvas-container">
+    <div className="graph-canvas-container" ref={containerRef}>
       <ForceGraph2D
         ref={graphRef}
         graphData={graphData}
@@ -101,10 +104,10 @@ function GraphCanvas() {
         }}
         onNodeClick={handleNodeClick}
         onNodeHover={handleNodeHover}
-        width={window.innerWidth * 0.6}
-        height={window.innerHeight}
+        width={dimensions.width}
+        height={dimensions.height}
       />
-      {selectedNodeId && (
+      {selectedNodeId !== null && (
         <NodePopup nodeId={selectedNodeId} onClose={() => setSelectedNodeId(null)} />
       )}
     </div>

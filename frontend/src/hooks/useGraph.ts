@@ -1,7 +1,7 @@
 /**
  * Custom hook for fetching and managing graph data.
  */
-import { useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import axios from "axios";
 import { useGraphStore } from "../store/graphStore";
 import type { GraphData } from "../types";
@@ -28,6 +28,8 @@ export function useGraph() {
           (link) => link.source != null && link.target != null
         );
 
+        console.log("Fetched nodes:", nodes.length, "links:", links.length);
+
         if (nodes.length > MAX_NODES) {
           console.warn(`Graph has ${nodes.length} nodes - trimming to ${MAX_NODES}`);
         }
@@ -35,9 +37,10 @@ export function useGraph() {
         const trimmedNodes = nodes.slice(0, MAX_NODES);
         const nodeIds = new Set(trimmedNodes.map((n) => n.id));
         const trimmedLinks = links
-          .filter((link) => nodeIds.has(link.source as any) && nodeIds.has(link.target as any))
+          .filter((link) => nodeIds.has(link.source) && nodeIds.has(link.target))
           .slice(0, MAX_LINKS);
 
+        console.log("Setting nodes:", trimmedNodes.length, "links:", trimmedLinks.length);
         setNodes(trimmedNodes);
         setLinks(trimmedLinks);
       }
@@ -50,10 +53,6 @@ export function useGraph() {
       setLoading(false);
     }
   }, [setNodes, setLinks, setLoading, setError]);
-
-  useEffect(() => {
-    fetchGraph();
-  }, [fetchGraph]);
 
   const expandNode = useCallback(
     async (nodeId: string, depth: number = 1) => {

@@ -13,8 +13,8 @@ export interface GraphNode {
 }
 
 export interface GraphLink {
-  source: string | GraphNode;
-  target: string | GraphNode;
+  source: string;
+  target: string;
   label?: string;
 }
 
@@ -37,7 +37,7 @@ export interface ChatResponse {
   answer: string;
   sql?: string;
   sql_success: boolean;
-  highlighted_nodes: string[];
+  highlighted_nodes: Array<number | string>;
   error?: string;
 }
 

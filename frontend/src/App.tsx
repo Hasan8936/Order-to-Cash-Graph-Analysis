@@ -14,10 +14,13 @@ function App() {
   const { isLoading, error } = useGraphStore();
 
   useEffect(() => {
+    console.log("App useEffect, calling fetchGraph");
     fetchGraph();
   }, [fetchGraph]);
 
   const { nodes, links } = useGraphStore();
+
+  console.log("App render", { nodes: nodes.length, links: links.length, isLoading, error });
 
   return (
     <div className="app">
