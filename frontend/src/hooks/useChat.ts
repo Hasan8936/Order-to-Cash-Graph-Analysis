@@ -38,6 +38,7 @@ export function useChat() {
           const assistantMessage: Message = {
             role: "assistant",
             content: response.data.answer,
+            sql: response.data.sql,
           };
           setMessages((prev) => [...prev, assistantMessage]);
 

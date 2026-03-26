@@ -7,9 +7,9 @@ import type { GraphState, GraphNode, GraphLink } from "../types";
 interface Store extends GraphState {
   setNodes: (nodes: GraphNode[]) => void;
   setLinks: (links: GraphLink[]) => void;
-  setSelectedNodeId: (id: string | null) => void;
-  setHighlightedNodes: (ids: string[]) => void;
-  addHighlightedNode: (id: string) => void;
+  setSelectedNodeId: (id: string | number | null) => void;
+  setHighlightedNodes: (ids: Array<string | number>) => void;
+  addHighlightedNode: (id: string | number) => void;
   clearHighlightedNodes: () => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -19,7 +19,7 @@ export const useGraphStore = create<Store>((set) => ({
   nodes: [],
   links: [],
   selectedNodeId: null,
-  highlightedNodes: new Set<string>(),
+  highlightedNodes: new Set<string | number>(),
   isLoading: false,
   error: null,
 
@@ -30,7 +30,7 @@ export const useGraphStore = create<Store>((set) => ({
   addHighlightedNode: (id) => set((state) => ({
     highlightedNodes: new Set([...state.highlightedNodes, id]),
   })),
-  clearHighlightedNodes: () => set({ highlightedNodes: new Set<string>() }),
+  clearHighlightedNodes: () => set({ highlightedNodes: new Set<string | number>() }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
 }));

@@ -1,7 +1,7 @@
 /**
  * Main App component.
  */
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import "./App.css";
 import GraphCanvas from "./components/GraphCanvas";
 import ChatPanel from "./components/ChatPanel";

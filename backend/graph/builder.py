@@ -80,10 +80,108 @@ def build_graph(db_path: str = None) -> nx.DiGraph:
             print(f"Error loading nodes for {node_type}: {e}")
             continue
     
-    # Add edges - simplified for now (full join logic would be more complex)
-    # This is a basic implementation that can be expanded
-    for node_id in G.nodes():
-        pass  # Edge logic to be implemented based on your relationship rules
+    # Add edges using explicit SQL joins per relationship to produce meaningful links
+    try:
+        # 1) Customer -> SalesOrder
+        cursor.execute(
+            "SELECT bp.customer AS cust, soh.salesOrder AS so FROM business_partners bp JOIN sales_order_headers soh ON bp.customer = soh.soldToParty"
+        )
+        rows = cursor.fetchall()
+        print(f"Customer->SalesOrder join rows: {len(rows)}")
+        for row in rows:
+            src = f"Customer:{row['cust']}"
+            dst = f"SalesOrder:{row['so']}"
+            if src in G.nodes and dst in G.nodes:
+                G.add_edge(src, dst, label="PLACED")
+
+        # 2) SalesOrder -> SalesOrderItem
+        cursor.execute(
+            "SELECT soh.salesOrder AS so, soi.salesOrderItem AS soi FROM sales_order_headers soh JOIN sales_order_items soi ON soh.salesOrder = soi.salesOrder"
+        )
+        rows = cursor.fetchall()
+        print(f"SalesOrder->SalesOrderItem join rows: {len(rows)}")
+        for row in rows:
+            src = f"SalesOrder:{row['so']}"
+            dst = f"SalesOrderItem:{row['so']}|{row['soi']}"
+            if src in G.nodes and dst in G.nodes:
+                G.add_edge(src, dst, label="HAS_ITEM")
+
+        # 3) SalesOrderItem -> Product
+        cursor.execute(
+            "SELECT soi.salesOrder AS so, soi.salesOrderItem AS soi, soi.material AS product FROM sales_order_items soi JOIN product_descriptions pd ON soi.material = pd.product"
+        )
+        rows = cursor.fetchall()
+        print(f"SalesOrderItem->Product join rows: {len(rows)}")
+        for row in rows:
+            src = f"SalesOrderItem:{row['so']}|{row['soi']}"
+            dst = f"Product:{row['product']}"
+            if src in G.nodes and dst in G.nodes:
+                G.add_edge(src, dst, label="REFERENCES_PRODUCT")
+
+        # 4) SalesOrderItem -> Plant (productionPlant)
+        cursor.execute(
+            "SELECT soi.salesOrder AS so, soi.salesOrderItem AS soi, soi.productionPlant AS plant FROM sales_order_items soi JOIN plants p ON soi.productionPlant = p.plant"
+        )
+        rows = cursor.fetchall()
+        print(f"SalesOrderItem->Plant join rows: {len(rows)}")
+        for row in rows:
+            src = f"SalesOrderItem:{row['so']}|{row['soi']}"
+            dst = f"Plant:{row['plant']}"
+            if src in G.nodes and dst in G.nodes:
+                G.add_edge(src, dst, label="PRODUCED_AT")
+
+        # 5) BillingDocument -> Customer
+        cursor.execute(
+            "SELECT bdh.billingDocument AS bd, bp.customer AS cust FROM billing_document_headers bdh JOIN business_partners bp ON bdh.soldToParty = bp.customer"
+        )
+        rows = cursor.fetchall()
+        print(f"BillingDocument->Customer join rows: {len(rows)}")
+        for row in rows:
+            src = f"BillingDocument:{row['bd']}"
+            dst = f"Customer:{row['cust']}"
+            if src in G.nodes and dst in G.nodes:
+                G.add_edge(src, dst, label="BILLED_TO")
+
+        # 6) BillingItem -> Delivery (via billing_document_items.referenceSdDocument)
+        cursor.execute(
+            "SELECT bdi.billingDocument AS bd, bdi.referenceSdDocument AS delivery FROM billing_document_items bdi JOIN outbound_delivery_headers odh ON bdi.referenceSdDocument = odh.deliveryDocument"
+        )
+        rows = cursor.fetchall()
+        print(f"BillingItem->Delivery join rows: {len(rows)}")
+        for row in rows:
+            # connect billingDocument -> Delivery (billing item info may be more specific)
+            src = f"BillingDocument:{row['bd']}"
+            dst = f"Delivery:{row['delivery']}"
+            if src in G.nodes and dst in G.nodes:
+                G.add_edge(src, dst, label="REFERENCES_DELIVERY")
+
+        # 7) BillingDocument -> JournalEntry
+        cursor.execute(
+            "SELECT bdh.billingDocument AS bd, je.accountingDocument AS je_acc, je.accountingDocumentItem AS je_item FROM billing_document_headers bdh JOIN journal_entry_items_accounts_receivable je ON bdh.billingDocument = je.referenceDocument"
+        )
+        rows = cursor.fetchall()
+        print(f"BillingDocument->JournalEntry join rows: {len(rows)}")
+        for row in rows:
+            src = f"BillingDocument:{row['bd']}"
+            # journal nodes are keyed by accountingDocument|accountingDocumentItem
+            dst = f"JournalEntry:{row['je_acc']}|{row['je_item']}"
+            if src in G.nodes and dst in G.nodes:
+                G.add_edge(src, dst, label="GENERATES")
+
+        # 8) JournalEntry -> Payment (clearing)
+        cursor.execute(
+            "SELECT je.accountingDocument AS je_acc, je.clearingAccountingDocument AS clearing FROM journal_entry_items_accounts_receivable je WHERE je.clearingAccountingDocument IS NOT NULL AND je.clearingAccountingDocument != ''"
+        )
+        rows = cursor.fetchall()
+        print(f"JournalEntry->Payment join rows: {len(rows)}")
+        for row in rows:
+            je_candidates = [n for n in G.nodes if n.startswith(f"JournalEntry:{row['je_acc']}")]
+            pay_candidates = [n for n in G.nodes if n.startswith(f"Payment:{row['clearing']}")]
+            if je_candidates and pay_candidates:
+                G.add_edge(je_candidates[0], pay_candidates[0], label="CLEARED_BY")
+
+    except Exception as e:
+        print(f"Error building edges: {e}")
     
     conn.close()
     return G

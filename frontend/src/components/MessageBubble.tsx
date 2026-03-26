@@ -1,16 +1,15 @@
 /**
  * MessageBubble component for displaying chat messages.
  */
-import React, { useState } from "react";
+import { useState } from "react";
 import type { Message } from "../types";
 import "../styles/MessageBubble.css";
 
 interface MessageBubbleProps {
   message: Message;
-  sql?: string;
 }
 
-function MessageBubble({ message, sql }: MessageBubbleProps) {
+function MessageBubble({ message }: MessageBubbleProps) {
   const [showSql, setShowSql] = useState(false);
   const isUser = message.role === "user";
 
@@ -19,7 +18,7 @@ function MessageBubble({ message, sql }: MessageBubbleProps) {
       <div className="message-content">
         {message.content}
       </div>
-      {sql && (
+      {message.sql && (
         <div className="sql-section">
           <button
             className="sql-toggle"
@@ -29,7 +28,7 @@ function MessageBubble({ message, sql }: MessageBubbleProps) {
           </button>
           {showSql && (
             <div className="sql-code">
-              <pre>{sql}</pre>
+              <pre>{message.sql}</pre>
             </div>
           )}
         </div>

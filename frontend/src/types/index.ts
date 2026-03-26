@@ -26,6 +26,7 @@ export interface GraphData {
 export interface Message {
   role: "user" | "assistant";
   content: string;
+  sql?: string;
 }
 
 export interface ChatRequest {
@@ -44,8 +45,8 @@ export interface ChatResponse {
 export interface GraphState {
   nodes: GraphNode[];
   links: GraphLink[];
-  selectedNodeId: string | null;
-  highlightedNodes: Set<string>;
+  selectedNodeId: string | number | null;
+  highlightedNodes: Set<string | number>;
   isLoading: boolean;
   error: string | null;
 }

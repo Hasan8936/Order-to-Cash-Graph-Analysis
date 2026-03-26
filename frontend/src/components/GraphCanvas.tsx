@@ -1,117 +1,63 @@
-/**
- * GraphCanvas component for visualizing the O2C graph.
- */
-import { useEffect, useRef, useState } from "react";
-import { ForceGraph2D } from "react-force-graph";
+import { useEffect, useRef } from "react";
+import ForceGraph2D from "react-force-graph-2d";
+import { useGraph } from "../hooks/useGraph";
 import { useGraphStore } from "../store/graphStore";
-import NodePopup from "./NodePopup";
 import "../styles/GraphCanvas.css";
 
-interface NodeData {
-  id: number;
-  label: string;
-  type: string;
-  color: string;
-  metadata?: Record<string, any>;
-  x?: number;
-  y?: number;
-}
-
 function GraphCanvas() {
-  const { nodes, links, selectedNodeId, setSelectedNodeId, highlightedNodes, error } =
-    useGraphStore();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<any>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const { fetchGraph, expandNode } = useGraph();
+  const { nodes, links, isLoading, error, setSelectedNodeId } = useGraphStore();
+  const fgRef = useRef<any>();
 
   useEffect(() => {
-    const updateDimensions = () => {
-      const container = containerRef.current;
-      if (container) {
-        setDimensions({ width: container.clientWidth, height: container.clientHeight });
-      }
-    };
+    fetchGraph();
+  }, [fetchGraph]);
 
-    updateDimensions();
-    const resizeObserver = new ResizeObserver(() => updateDimensions());
-    if (containerRef.current) resizeObserver.observe(containerRef.current);
+  if (error) return <div className="graph-canvas-container">Error loading graph: {error}</div>;
+  if (isLoading || nodes.length === 0) return <div className="graph-canvas-container">Loading graph data...</div>;
 
-    window.addEventListener("resize", updateDimensions);
-    return () => {
-      window.removeEventListener("resize", updateDimensions);
-      resizeObserver.disconnect();
-    };
-  }, []);
-
-  console.log("GraphCanvas render", { nodes: nodes.length, links: links.length, error });
-
+  // Map store nodes/links to force-graph expected shape
   const graphData = {
-    nodes: nodes.map((node) => ({
-      ...node,
-      highlighted: highlightedNodes.has(node.id),
-      val: 3,
-    })),
-    links: links.map((link) => ({
-      source: link.source,
-      target: link.target,
-      label: link.label,
-    })),
+    nodes: nodes.map((n: any) => ({ id: String(n.id), name: n.label || String(n.id), color: n.color })),
+    links: links.map((l: any) => ({ source: String(l.source), target: String(l.target), label: l.label }))
   };
 
-  console.log("graphData", graphData);
-
-  const handleNodeClick = (node: NodeData) => {
-    setSelectedNodeId(node.id);
-  };
-
-  const handleNodeHover = (node: NodeData | null) => {
-    if (graphRef.current && node && node.x != null && node.y != null) {
-      graphRef.current.centerAt(node.x, node.y, 1000);
-    }
-  };
-
-  if (error) {
-    return (
-      <div className="graph-canvas-container">
-        <div className="graph-error">Error loading graph: {error}</div>
-      </div>
-    );
-  }
-  if (!nodes.length || !links.length) {
-    return (
-      <div className="graph-canvas-container">
-        <div className="graph-empty">No graph data available.</div>
-      </div>
-    );
-  }
   return (
-    <div className="graph-canvas-container" ref={containerRef}>
+    <div className="graph-canvas-container" role="region" aria-label="Graph canvas">
+      <div className="graph-summary">
+        <strong>Nodes:</strong> {nodes.length} &nbsp; <strong>Links:</strong> {links.length}
+      </div>
+
       <ForceGraph2D
-        ref={graphRef}
+        ref={fgRef}
         graphData={graphData}
-        nodeCanvasObject={(node: any, ctx: any) => {
-          const label = node.label;
-          const size = node.highlighted ? 8 : 5;
-          ctx.fillStyle = node.highlighted ? "#ff6b6b" : node.color;
+        nodeAutoColorBy={"color"}
+        nodeLabel={(node: any) => node.name}
+        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          const label = node.name;
+          const fontSize = 12 / globalScale;
+          ctx.fillStyle = node.color || "#1f77b4";
           ctx.beginPath();
-          ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
+          ctx.arc(node.x, node.y, 5, 0, 2 * Math.PI, false);
           ctx.fill();
-          ctx.font = "12px Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillStyle = "#000";
-          ctx.fillText(label, node.x, node.y + size + 8);
+          ctx.font = `${fontSize}px Sans-Serif`;
+          ctx.fillStyle = "#222";
+          ctx.fillText(label, node.x + 8, node.y + fontSize / 2);
         }}
-        onNodeClick={handleNodeClick}
-        onNodeHover={handleNodeHover}
-        width={dimensions.width}
-        height={dimensions.height}
+        onNodeClick={(node: any) => {
+          setSelectedNodeId(node.id);
+          expandNode(String(node.id), 1).catch(() => {});
+        }}
+        linkDirectionalArrowLength={3}
+        linkDirectionalParticles={0}
+        width={800}
+        height={600}
       />
-      {selectedNodeId !== null && (
-        <NodePopup nodeId={selectedNodeId} onClose={() => setSelectedNodeId(null)} />
-      )}
+
+      <div className="graph-footer">Drag to explore. Click a node to expand.</div>
     </div>
   );
 }
 
 export default GraphCanvas;
+

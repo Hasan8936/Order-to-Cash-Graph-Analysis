@@ -26,10 +26,10 @@ function NodePopup({ nodeId, onClose }: NodePopupProps) {
 
   useEffect(() => {
     // Fallback: Try to get node details from the graph store if API is missing
-    const node = nodes.find((n) => n.id === nodeId);
+    const node = nodes.find((n) => String(n.id) === nodeId);
     if (node) {
       setNodeDetail({
-        id: node.id,
+        id: String(node.id),
         type: node.type,
         label: node.label,
         properties: node.metadata || {},

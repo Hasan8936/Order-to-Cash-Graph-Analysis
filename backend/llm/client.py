@@ -44,7 +44,10 @@ class LLMClient:
         try:
             import google.generativeai as genai
             genai.configure(api_key=self.gemini_key)
-            model_name = os.getenv("GEMINI_MODEL", "gemini-1.5")
+            # Use a known valid Gemini variant by default. The bare "gemini-1.5"
+            # identifier may not be valid for newer API versions. Prefer a
+            # specific variant like "gemini-1.5-flash" or "gemini-1.5-pro".
+            model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
             model = genai.GenerativeModel(model_name)
             
             # Build conversation history
@@ -64,14 +67,24 @@ class LLMClient:
             # Make the API call
             response = model.generate_content(contents=messages)
 
-            # Normalize the response text for downstream parsing/debugging
+            # Normalize the response text for downstream parsing/debugging.
+            # If extracting text fails (often due to safety filters or blocked
+            # content), return a failure so callers don't treat an empty or
+            # unusable response as success.
             try:
                 response_text = response.text
-            except Exception:
-                try:
-                    response_text = str(response)
-                except Exception:
-                    response_text = ""
+            except Exception as ex:
+                # If text extraction fails, return an explicit error so callers
+                # can surface a useful message instead of treating this as
+                # success with empty content.
+                return {
+                    "success": False,
+                    "response": None,
+                    "error": (
+                        "Failed to extract text from Gemini response (possibly "
+                        "blocked by safety filters): " + str(ex)
+                    )
+                }
 
             return {
                 "success": True,

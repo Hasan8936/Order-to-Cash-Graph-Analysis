@@ -1,7 +1,6 @@
 /**
  * StatusBar component for displaying connection and loading status.
  */
-import React from "react";
 import "../styles/StatusBar.css";
 
 interface StatusBarProps {
