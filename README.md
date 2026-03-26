@@ -217,5 +217,3 @@ For questions or issues:
 - Ensure all prerequisites are installed
 
 ---
-
-**Built with ❤️ for demonstrating advanced graph-based data modeling and AI-powered query systems.**
