@@ -10,11 +10,13 @@
         "preview": "vite preview"
     },
     "dependencies": {
+        "axios": "^1.6.0",
+        "o2c-graph-frontend": "file:",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
-        "react-force-graph": "^1.44.2",
-        "zustand": "^4.4.0",
-        "axios": "^1.6.0"
+        "three": "^0.164.0",
+        "react-force-graph-2d": "^1.29.1",
+        "zustand": "^4.4.0"
     },
     "devDependencies": {
         "@types/react": "^18.2.43",
@@ -23,8 +25,8 @@
         "@typescript-eslint/parser": "^6.14.0",
         "@vitejs/plugin-react": "^4.2.1",
         "eslint": "^8.55.0",
-        "eslint-plugin-react-hooks": "^4.6.0",
         "eslint-plugin-react": "^7.33.2",
+        "eslint-plugin-react-hooks": "^4.6.0",
         "typescript": "^5.2.2",
         "vite": "^5.0.8"
     }
