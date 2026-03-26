@@ -43,9 +43,9 @@ class LLMClient:
         """Call Google Gemini API."""
         try:
             import google.generativeai as genai
-            
             genai.configure(api_key=self.gemini_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model_name = os.getenv("GEMINI_MODEL", "gemini-1.5")
+            model = genai.GenerativeModel(model_name)
             
             # Build conversation history
             messages = [{"role": "user", "parts": SYSTEM_PROMPT}, {"role": "model", "parts": "I understand. I will help with SQL queries for the O2C dataset."}]
@@ -63,10 +63,19 @@ class LLMClient:
             
             # Make the API call
             response = model.generate_content(contents=messages)
-            
+
+            # Normalize the response text for downstream parsing/debugging
+            try:
+                response_text = response.text
+            except Exception:
+                try:
+                    response_text = str(response)
+                except Exception:
+                    response_text = ""
+
             return {
                 "success": True,
-                "response": response.text,
+                "response": response_text,
                 "error": None
             }
         
@@ -74,7 +83,10 @@ class LLMClient:
             return {
                 "success": False,
                 "response": None,
-                "error": f"Gemini API error: {str(e)}"
+                "error": (
+                    f"Gemini API error: {str(e)}. "
+                    "Check GEMINI_MODEL and GEMINI_API_KEY, or call ListModels to see supported models. "
+                )
             }
     
     def _call_groq(self, user_message: str, history: list = None) -> dict:
