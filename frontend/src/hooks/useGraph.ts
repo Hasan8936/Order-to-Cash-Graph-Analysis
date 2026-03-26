@@ -14,10 +14,12 @@ export function useGraph() {
   const fetchGraph = useCallback(async () => {
     setLoading(true);
     try {
+      const url = `${API_BASE}/api/graph`;
+      console.log("Requesting graph from:", url);
       const response = await axios.get<{
         success: boolean;
         data: GraphData;
-      }>(`${API_BASE}/api/graph`);
+      }>(url);
 
       if (response.data.success) {
         const MAX_NODES = 1500;
@@ -45,10 +47,25 @@ export function useGraph() {
         setLinks(trimmedLinks);
       }
       setError(null);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to fetch graph";
+    } catch (err: any) {
+      // Surface HTTP details when available to help diagnose 404/500 issues
+      const status = err?.response?.status;
+      const statusText = err?.response?.statusText;
+      const url = `${API_BASE}/api/graph`;
+      const message = status
+        ? `Request to ${url} failed with status ${status} ${statusText}`
+        : err instanceof Error
+        ? err.message
+        : "Failed to fetch graph";
+
       setError(message);
-      console.error("Error fetching graph:", err);
+      console.error("Error fetching graph:", {
+        url,
+        status,
+        statusText,
+        data: err?.response?.data,
+        message: err?.message,
+      });
     } finally {
       setLoading(false);
     }
