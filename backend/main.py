@@ -12,6 +12,7 @@ load_dotenv()
 
 from .api import graph, chat, health
 from .db.connection import init_db
+from .db import seed
 from .graph.builder import build_graph
 
 # Initialize FastAPI app
@@ -49,9 +50,14 @@ async def startup_event():
     # Initialize database if needed
     db_path = os.getenv("DB_PATH", "backend/o2c.db")
     if not os.path.exists(db_path):
-        print("Database not found, initializing...")
+        print("Database not found, initializing and seeding data...")
         try:
             init_db()
+            # Seed the database with provided JSONL dataset so graph isn't empty
+            try:
+                seed.seed_database()
+            except Exception as se:
+                print(f"Warning: Database seeding failed: {se}")
         except Exception as e:
             print(f"Warning: Database initialization failed: {e}")
     
