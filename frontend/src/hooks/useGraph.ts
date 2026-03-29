@@ -6,7 +6,10 @@ import axios from "axios";
 import { useGraphStore } from "../store/graphStore";
 import type { GraphData } from "../types";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+// Normalize API base to avoid accidental double-slashes and provide a sensible
+// browser fallback when `VITE_API_BASE` is not set in production.
+const RAW_API_BASE = import.meta.env.VITE_API_BASE || "";
+const API_BASE = (RAW_API_BASE.replace(/\/+$/g, "") || window.location.origin).replace(/\/+$/g, "");
 
 export function useGraph() {
   const { setNodes, setLinks, setLoading, setError } = useGraphStore();
@@ -19,7 +22,7 @@ export function useGraph() {
       const response = await axios.get<{
         success: boolean;
         data: GraphData;
-      }>(url);
+      }>(url, { timeout: 15000 });
 
       if (response.data.success) {
         const MAX_NODES = 1500;
@@ -66,6 +69,33 @@ export function useGraph() {
         data: err?.response?.data,
         message: err?.message,
       });
+
+      // If the first attempt used the configured API base and failed with
+      // an origin-relative or double-slash path, try a safe fallback to the
+      // current origin (useful when Vercel doesn't set VITE_API_BASE).
+      try {
+        if (RAW_API_BASE === "") {
+          const fallbackUrl = `${window.location.origin}/api/graph`;
+          console.warn("Retrying graph request with fallback URL:", fallbackUrl);
+          const retryResp = await axios.get<{ success: boolean; data: GraphData }>(fallbackUrl, { timeout: 15000 });
+          if (retryResp.data?.success) {
+            setError(null);
+            const nodes = retryResp.data.data.nodes || [];
+            const links = (retryResp.data.data.links || []).filter((link) => link.source != null && link.target != null);
+            const MAX_NODES = 1500;
+            const MAX_LINKS = 3000;
+            const trimmedNodes = nodes.slice(0, MAX_NODES);
+            const nodeIds = new Set(trimmedNodes.map((n) => n.id));
+            const trimmedLinks = links
+              .filter((link) => nodeIds.has(link.source) && nodeIds.has(link.target))
+              .slice(0, MAX_LINKS);
+            setNodes(trimmedNodes);
+            setLinks(trimmedLinks);
+          }
+        }
+      } catch (retryErr) {
+        console.error("Retry fetching graph failed:", retryErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -79,6 +109,7 @@ export function useGraph() {
           expanded_nodes: string[];
         }>(`${API_BASE}/api/graph/expand`, null, {
           params: { node_id: nodeId, depth },
+          timeout: 10000,
         });
 
         if (response.data.success) {

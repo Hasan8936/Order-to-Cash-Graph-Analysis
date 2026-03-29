@@ -44,6 +44,7 @@ async def startup_event():
     print("Starting O2C Graph API...")
     print(f"GEMINI_API_KEY set: {bool(os.getenv('GEMINI_API_KEY'))}")
     print(f"GROQ_API_KEY set: {bool(os.getenv('GROQ_API_KEY'))}")
+    print(f"LLM_PROVIDER: {os.getenv('LLM_PROVIDER', 'gemini')}")
     
     # Initialize database if needed
     db_path = os.getenv("DB_PATH", "backend/o2c.db")

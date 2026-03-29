@@ -12,95 +12,34 @@ class LLMClient:
     """Client for calling LLM APIs."""
     
     def __init__(self):
-        self.gemini_key = os.getenv("GEMINI_API_KEY")
+        # Prefer Groq as the default provider. Users may override with
+        # `LLM_PROVIDER` but Groq will be used if no provider is set.
         self.groq_key = os.getenv("GROQ_API_KEY")
-        self.provider = os.getenv("LLM_PROVIDER", "gemini").lower()
+        self.provider = os.getenv("LLM_PROVIDER", "groq").lower()
     
     def call(self, user_message: str, history: list = None) -> dict:
         """
         Call the LLM with a message and optional history.
         Returns: {success: bool, response: str, error: str}
         """
-        if not self.gemini_key and not self.groq_key:
-            return {
-                "success": False,
-                "response": None,
-                "error": "No LLM API key configured. Set GEMINI_API_KEY or GROQ_API_KEY"
-            }
-        
-        if self.provider == "gemini" and self.gemini_key:
-            return self._call_gemini(user_message, history)
-        elif self.provider == "groq" and self.groq_key:
-            return self._call_groq(user_message, history)
-        else:
-            return {
-                "success": False,
-                "response": None,
-                "error": f"LLM provider '{self.provider}' not configured"
-            }
-    
-    def _call_gemini(self, user_message: str, history: list = None) -> dict:
-        """Call Google Gemini API."""
-        try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.gemini_key)
-            # Use a known valid Gemini variant by default. The bare "gemini-1.5"
-            # identifier may not be valid for newer API versions. Prefer a
-            # specific variant like "gemini-1.5-flash" or "gemini-1.5-pro".
-            model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-            model = genai.GenerativeModel(model_name)
-            
-            # Build conversation history
-            messages = [{"role": "user", "parts": SYSTEM_PROMPT}, {"role": "model", "parts": "I understand. I will help with SQL queries for the O2C dataset."}]
-            if history:
-                for msg in history:
-                    messages.append({
-                        "role": msg.get("role", "user"),
-                        "parts": msg.get("content", "")
-                    })
-            
-            messages.append({
-                "role": "user",
-                "parts": user_message
-            })
-            
-            # Make the API call
-            response = model.generate_content(contents=messages)
-
-            # Normalize the response text for downstream parsing/debugging.
-            # If extracting text fails (often due to safety filters or blocked
-            # content), return a failure so callers don't treat an empty or
-            # unusable response as success.
-            try:
-                response_text = response.text
-            except Exception as ex:
-                # If text extraction fails, return an explicit error so callers
-                # can surface a useful message instead of treating this as
-                # success with empty content.
+        # Ensure Groq API key is present for the default provider.
+        if self.provider == "groq":
+            if not self.groq_key:
                 return {
                     "success": False,
                     "response": None,
-                    "error": (
-                        "Failed to extract text from Gemini response (possibly "
-                        "blocked by safety filters): " + str(ex)
-                    )
+                    "error": "GROQ_API_KEY not set. Set GROQ_API_KEY to use the Groq provider."
                 }
+            return self._call_groq(user_message, history)
 
-            return {
-                "success": True,
-                "response": response_text,
-                "error": None
-            }
-        
-        except Exception as e:
-            return {
-                "success": False,
-                "response": None,
-                "error": (
-                    f"Gemini API error: {str(e)}. "
-                    "Check GEMINI_MODEL and GEMINI_API_KEY, or call ListModels to see supported models. "
-                )
-            }
+        return {
+            "success": False,
+            "response": None,
+            "error": f"LLM provider '{self.provider}' not supported in this deployment. Use 'groq'."
+        }
+    
+    # Gemini support removed from this deployment. Groq is the supported
+    # LLM provider and is handled by `_call_groq` below.
     
     def _call_groq(self, user_message: str, history: list = None) -> dict:
         """Call Groq API."""
