@@ -6,12 +6,17 @@ import json
 import sqlite3
 import glob
 import pathlib
+import os
+import io
+import zipfile
+import requests
 from datetime import datetime, time
 from typing import Any
 from .connection import init_db, get_db_path
 
 
 DATA_DIR = pathlib.Path("data/sap-o2c-data")
+DATA_URL = os.getenv("DATA_URL", "")
 
 # Mapping of folder names to table names
 TABLE_MAP = {
@@ -125,6 +130,25 @@ def seed_database():
     """Initialize database schema and load all JSONL data."""
     print("Initializing database schema...")
     init_db()
+
+    # If the dataset is missing in the container, optionally try to download
+    # a zip archive provided via the DATA_URL environment variable. This
+    # allows deployments (e.g., Render/Vercel) to fetch large datasets at
+    # startup without committing them into the repository.
+    if not DATA_DIR.exists() or not any(DATA_DIR.iterdir()):
+        if DATA_URL:
+            print(f"Data directory {DATA_DIR} missing — attempting download from DATA_URL")
+            try:
+                resp = requests.get(DATA_URL, timeout=120)
+                resp.raise_for_status()
+                z = zipfile.ZipFile(io.BytesIO(resp.content))
+                # Extract into the 'data' parent so the expected path is created
+                z.extractall(path=str(DATA_DIR.parent))
+                print("Dataset downloaded and extracted.")
+            except Exception as e:
+                print(f"Warning: failed to download dataset from DATA_URL: {e}")
+        else:
+            print(f"Data directory {DATA_DIR} not found and DATA_URL not set — seeding will create empty tables")
     
     db_path = get_db_path()
     conn = sqlite3.connect(db_path)
