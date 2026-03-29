@@ -13,8 +13,17 @@ function GraphCanvas() {
     fetchGraph();
   }, [fetchGraph]);
 
-  if (error) return <div className="graph-canvas-container">Error loading graph: {error}</div>;
-  if (isLoading || nodes.length === 0) return <div className="graph-canvas-container">Loading graph data...</div>;
+  // Prefer showing explicit errors to avoid the UI getting stuck on "Loading"
+  if (error) {
+    return <div className="graph-canvas-container">Error loading graph: {error}</div>;
+  }
+
+  // Only show loading while an active request is in-flight. If loading
+  // is false but we still have no nodes, show a helpful message so the
+  // user isn't left with a perpetual "Loading" state.
+  if (isLoading) return <div className="graph-canvas-container">Loading graph data...</div>;
+  if (!isLoading && nodes.length === 0)
+    return <div className="graph-canvas-container">No graph data available (check backend/API and env vars).</div>;
 
   // Map store nodes/links to force-graph expected shape
   const graphData = {
